@@ -20,9 +20,15 @@ const axiosWithoutInterceptor = axios.create({
 });
 
 // ✅ Функция для обновления `access_token`
+let isRefreshing = false;
 const refreshToken = async () => {
+  if(isRefreshing) return null;
+  isRefreshing = true;
+
   try {
-    const response = await axiosWithoutInterceptor.post("/api/auth/refresh/"); // `refresh_token` берётся из cookie
+    const response = await axiosWithoutInterceptor.post("/api/auth/refresh/", null, {
+      withCredentials: true, // ✅ ОБЯЗАТЕЛЬНО для отправки httpOnly куки
+    }); // `refresh_token` берётся из cookie
     sessionStorage.setItem("token", response.data.access); // ✅ Обновляем `access_token`
     return response.data.access;
   } catch (error) {
@@ -45,7 +51,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// ✅ Интерсептор ответов (если 401, пробуем обновить токен)
+//✅ Интерсептор ответов (если 401, пробуем обновить токен)
 api.interceptors.response.use(
   (response) => response, // ✅ Если ответ успешный, возвращаем как есть
   async (error) => {

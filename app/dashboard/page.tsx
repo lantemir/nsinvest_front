@@ -1,34 +1,26 @@
 "use client";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import LogoutButton from "@/components/LogoutButton";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+
+import withAuth from "@/hoc/withAuth";
+import NewsList from "./components/NewsList";
 
 const Dashboard = () => {
-    const { user, token } = useSelector((state: RootState) => state.auth);
+    const {  token } = useSelector((state: RootState) => state.auth);
 
-    const router = useRouter();
 
-    useEffect(()=> {
-        if(!user || !token){
-            router.push('/login')
-        }
-        
-    }, [user, token, router])
-
-    if(!user || !token){
+    if (!token) {
         return <p>Перенапрвление на страницу входа...</p>
     }
 
-    return(
-        <div className="p-6">
-            <h1 className="text-2xl font-bold">Добро пожаловать, {user?.username}!</h1>
- 
-      <LogoutButton /> {/* ✅ Кнопка выхода */}
-    </div>
+    return (
 
+        <div className="p-6">
+
+            <NewsList />
+           
+        </div>
     )
 }
 
-export default Dashboard
+export default withAuth(Dashboard);

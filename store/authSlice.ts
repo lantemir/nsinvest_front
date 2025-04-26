@@ -1,21 +1,42 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import api from "@/utils/axios";
 
+interface Profile {
+  avatar: string | null,
+  phone_number: string | null
+}
+
 // Интерфейс состояния аутентификации
 interface AuthState {
-  user: { id: number; username: string } | null;
+  user: { id: number; username: string; email: string | null; profile : Profile} | null;
   token: string | null;
   loading: boolean;
-  error: string | null;
+  error: string | null;    
 }
+
+// ✅ Читаем `token` и `user` из `sessionStorage`, если есть
+const storedToken = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
+const storedUser = typeof window !== "undefined" ? JSON.parse(sessionStorage.getItem("user") || "null") : null;
 
 // Начальное состояние
 const initialState: AuthState = {
-  user: null,
-  token: typeof window !== "undefined" ? localStorage.getItem("token") : null,
+  user: storedUser,
+  token: storedToken,
   loading: false,
   error: null,
 };
+
+// ✅ Функция загрузки пользователя из `sessionStorage`
+export const loadUserFromSession = createAsyncThunk("auth/loadUser", async () => {
+  const token = sessionStorage.getItem("token");
+  const user = sessionStorage.getItem("user");
+
+  if (token && user ){
+    return { token, user: JSON.parse(user)};
+  }
+  return null;
+
+});
 
 // Регистрация пользователя
 // Регистрация пользователя
@@ -88,6 +109,7 @@ any,
       
       // ✅ Сохраняем `access token` в памяти, но НЕ `refresh token`
       sessionStorage.setItem("token", response.data.access)
+      sessionStorage.setItem("user", JSON.stringify(response.data.user));
       
       return response.data;
     } catch (error: any) {
@@ -108,6 +130,23 @@ any,
     }
   }
 );
+
+export const refreshUser = createAsyncThunk(
+  "auth/refresh",
+  async(_, thunkAPI) => {
+    try{
+      const token = sessionStorage.getItem("token");
+      const response = await api.get("api/auth/me", {
+        headers: {Authorization:`Bearer ${token}` },
+      });
+      sessionStorage.setItem("user", JSON.stringify(response.data));
+      return{user: response.data, token}
+
+    } catch (error: any) {
+      return thunkAPI.rejectWithValue("не удалось обновить данные пользователя")
+    }
+  }
+) 
 
 
 
@@ -150,7 +189,11 @@ const authSlice = createSlice({
       .addCase(loginUser.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.error as string;
-      });
+      })
+      .addCase(refreshUser.fulfilled, (state, action) => {
+        state.token = action.payload.token
+        state.user = action.payload.user
+      })     
   },
 });
 
