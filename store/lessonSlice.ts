@@ -29,7 +29,21 @@ const initialState: LessonState = {
     currentPage: 1,
 }
 
-export const fetchLessonsByCourse = createAsyncThunk(
+export const fetchLessonsByCourse = createAsyncThunk<
+// тип результата при fulfilled
+{
+    data: Lesson[];
+    totalPages: number;
+    currentPage: number;
+  },
+  // аргумент
+  { courseId: number; page?: number },
+  // thunkAPI тип (в частности, для rejectWithValue)
+  {
+    rejectValue: string;
+  }
+>(
+    
     "lessons/fetchByCourse",
     async(
         {courseId, page = 1}: {courseId: number; page?: number},
@@ -41,7 +55,7 @@ export const fetchLessonsByCourse = createAsyncThunk(
             );            
             return{
                 data: response.data.results,
-                totalPages: Math.ceil(response.data.count/10),
+                totalPages: Math.ceil(response.data.count/response.data.page_size),
                 currentPage: page,
             };
         }catch(erroe:any){
@@ -76,7 +90,14 @@ export const fetchLessonById = createAsyncThunk(
 const courseSlice = createSlice({
     name: "lessons",
     initialState,
-    reducers: {},
+    reducers: {
+        resetLessons(state) {
+            state.lessons=[];
+            state.currentLesson = null;
+            state.error= null;
+            state.loading= false;
+        }
+    },
     extraReducers: (builder) => {
         builder
             .addCase(fetchLessonsByCourse.pending, (state) => {
@@ -92,7 +113,9 @@ const courseSlice = createSlice({
             })
             .addCase(fetchLessonsByCourse.rejected, (state, action)=> {
                 state.loading=false;
-                state.error=action.payload as string;
+                state.error=action.payload ?? "Произошла ошибка";
+                state.lessons = []
+                state.currentLesson = null
             })
             .addCase(fetchLessonById.pending, (state)=>{
                 state.loading= true;
@@ -106,8 +129,10 @@ const courseSlice = createSlice({
             .addCase(fetchLessonById.rejected, (state,action)=> {
                 state.loading = false;
                 state.error = action.payload as string;
+                state.currentLesson = null
             })
             
     }
 });
+export const { resetLessons } = courseSlice.actions;
 export default courseSlice.reducer

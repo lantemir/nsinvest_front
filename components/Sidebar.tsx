@@ -1,22 +1,13 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import clsx from "clsx";
-import { Menu, Settings, Home, Users, DollarSign, Shield  } from "lucide-react";
+import { Menu, Settings, Home, Users, Shield } from "lucide-react";
 import { fetchCategories } from "@/store/categorySlice";
-import { useDispatch, UseDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { useAppDispatch } from "@/store/hooks";
-
-// const navItems = [
-//   { name: "Главная", href: "/dashboard", icon: <Home size={20} /> },
-//   { name: "Кибербезопасность", href: "/dashboard/cybersecurity", icon: <Shield size={20} /> },
-//   { name: "Програмирование", href: "/dashboard/suppliers", icon: <Users size={20} /> },
-//   { name: "Белый хакер", href: "dashboard/hac", icon: <Shield size={20} /> },
-//   { name: "Английский", href: "/dashboard/englis", icon: <Settings size={20} /> },
-  
-// ];
 
 const getCategoryIcon = (slug: string) => {
   switch (slug) {
@@ -29,7 +20,7 @@ const getCategoryIcon = (slug: string) => {
     case "devops":
       return <Home size={20} />;
     default:
-      return <Shield size={25} />; // иконка по умолчанию
+      return <Shield size={25} />;
   }
 };
 
@@ -40,35 +31,24 @@ interface SidebarProps {
   toggleCollapse: () => void;
 }
 
-const Sidebar = ({ isOpen, onClose, isCollapsed, toggleCollapse  }: SidebarProps) => {
+const Sidebar = ({ isOpen, onClose, isCollapsed, toggleCollapse }: SidebarProps) => {
   const pathname = usePathname();
   const dispatch = useAppDispatch();
 
-  const {categories, loading: catLoading, error} = useSelector(
-    (state: RootState) => state.category
-  );
+  const { categories } = useSelector((state: RootState) => state.category);
+  const { user } = useSelector((state: RootState) => state.auth);
 
-  const {loading: authLoading, user} = useSelector(
-    (state:RootState) => state.auth
-  )
-
-  useEffect(()=>{
-    if(user && categories.length === 0){
-      dispatch(fetchCategories());   
-    }     
-  },[dispatch, user])
-
-  console.log("categories@@@ ", categories)
-
-  // const [isCollapsed, setIsCollapsed] = useState(false); // ← состояние сворачивания
+  useEffect(() => {
+    if (user && categories.length === 0) {
+      dispatch(fetchCategories());
+    }
+  }, [dispatch, user]);
 
   return (
     <aside
       className={clsx(
         "fixed top-0 left-0 h-screen bg-white border-r shadow-md z-20 transition-all duration-300",
-        // 👉 мобилка: управляется через isOpen
-        "md:translate-x-0", // на десктопе всегда виден
-        isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0", // ← на мобилке работает
+        isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
         isCollapsed ? "w-20" : "w-48"
       )}
     >
@@ -91,31 +71,35 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, toggleCollapse  }: SidebarProps
       </div>
 
       <div className="mt-4 space-y-2">
+      {categories.map((item) => {
+  const targetHref = item.slug ? `/dashboard/category/${item.slug}` : `/dashboard`;
+  const isActive = item.slug
+    ? pathname === targetHref || pathname.startsWith(`${targetHref}/`)
+    : pathname === "/dashboard";
 
-        {categories.map((item) => (
-         <Link
-         key={item.id}
-         href={`/dashboard/${ item.slug}`}
-         onClick={() => {
-           if (window.innerWidth < 768) {
-             onClose();
-           }
-         }}
-         className="block"
-       >
-         <span
-           className={clsx(
-             "flex items-center gap-3 py-2 px-3 rounded hover:bg-gray-100 w-full",
-             pathname === item.href && "bg-gray-200 font-medium"
-           )}
-         >
-           <span className="flex-shrink-0"> {getCategoryIcon(item.slug)}</span>
-           {!isCollapsed && (
-             <span className="truncate">{item.name}</span>
-           )}
-         </span>
-       </Link>
-        ))}
+  return (
+    <Link
+      key={item.id}
+      href={targetHref}
+      onClick={() => {
+        if (window.innerWidth < 768) {
+          onClose();
+        }
+      }}
+      className="block"
+    >
+      <span
+        className={clsx(
+          "flex items-center gap-3 py-2 px-3 rounded hover:bg-gray-100 w-full",
+          isActive && "bg-gray-200 font-medium"
+        )}
+      >
+        <span className="flex-shrink-0">{getCategoryIcon(item.slug)}</span>
+        {!isCollapsed && <span className="truncate">{item.name}</span>}
+      </span>
+    </Link>
+  );
+})}
       </div>
     </aside>
   );

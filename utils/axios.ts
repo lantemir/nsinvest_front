@@ -57,8 +57,10 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    const isAuthRoute = originalRequest.url.includes("auth/login") || originalRequest.url.includes("/auth/register");
+
     // Если ошибка 401 (Unauthorized) и запрос еще не повторялся
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && !isAuthRoute && !originalRequest._retry) {
       originalRequest._retry = true; // ✅ Флаг, чтобы не зациклить запрос
 
       const newAccessToken = await refreshToken();

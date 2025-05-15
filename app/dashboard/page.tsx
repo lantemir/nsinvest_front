@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 
 import withAuth from "@/hoc/withAuth";
-import NewsList from "./components/NewsList";
+import InterestingList from "./components/InterestingList";
 
 const Dashboard = () => {
     const {  token } = useSelector((state: RootState) => state.auth);
@@ -17,7 +17,7 @@ const Dashboard = () => {
 
         <div className="p-6">
 
-            <NewsList />
+            <InterestingList />
            
         </div>
     )

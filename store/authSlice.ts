@@ -15,19 +15,22 @@ interface AuthState {
 }
 
 // ✅ Читаем `token` и `user` из `sessionStorage`, если есть
-const storedToken = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
-const storedUser = typeof window !== "undefined" ? JSON.parse(sessionStorage.getItem("user") || "null") : null;
+// const storedToken = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
+// const storedUser = typeof window !== "undefined" ? JSON.parse(sessionStorage.getItem("user") || "null") : null;
 
 // Начальное состояние
 const initialState: AuthState = {
-  user: storedUser,
-  token: storedToken,
+  user: null,
+  token: null,
   loading: false,
   error: null,
 };
 
 // ✅ Функция загрузки пользователя из `sessionStorage`
 export const loadUserFromSession = createAsyncThunk("auth/loadUser", async () => {
+
+  if(typeof window === "undefined") return null;
+
   const token = sessionStorage.getItem("token");
   const user = sessionStorage.getItem("user");
 
@@ -91,10 +94,7 @@ export const registerUser = createAsyncThunk(
         return thunkAPI.rejectWithValue(error.response?.data?.detail || "Неверный код подтверждения");
       }
     }
-  );
-
- 
-  
+  );  
 
 // Авторизация пользователя
 export const loginUser = createAsyncThunk <
@@ -148,6 +148,55 @@ export const refreshUser = createAsyncThunk(
   }
 ) 
 
+export const changePassword = createAsyncThunk<
+any, 
+{username: string; password: string }, 
+{rejectValue: {error: string}}
+>(
+  "auth/password",
+  async({username, password}: {username: string; password: string}, thunkAPI) => {
+    try {
+      const response = await api.post("api/auth/password/", {username, password});
+      return response.data
+    } catch (error: any){
+      return thunkAPI.rejectWithValue(error.response?.data?.error  || "password не изменён")
+    }
+    
+  }
+) 
+
+export const forgotPassword = createAsyncThunk<
+any,
+{email: string; },
+{rejectValue:{error: string}}
+>(
+  "auth/forgot-password",
+  async({email}:{email:string}, thunkAPI) => {
+    try{
+      const response = await api.post("api/auth/forgot-password/", {email});
+      return response.data
+    } catch(error: any){
+      return thunkAPI.rejectWithValue(error.response?.data?.error || "Не получилось изменить password")
+    }
+  }
+)
+
+export const resetPassword = createAsyncThunk<
+any,
+{uid: string, token: string, password: string},
+{rejectValue:{error: string}}
+> (
+  "auth/reset-password",
+  async({uid, token, password }:{uid:string,token:string, password:string}, thunkAPI) => {
+    try{
+      const response = await api.post("/api/auth/reset-password-confirm/", {uid,token,password})
+    } catch(error: any){
+      return thunkAPI.rejectWithValue(error.respons?.data?.error || "Ошибка сброса пароля")
+    }
+  }
+)
+
+
 
 
 // Slice аутентификации
@@ -193,6 +242,12 @@ const authSlice = createSlice({
       .addCase(refreshUser.fulfilled, (state, action) => {
         state.token = action.payload.token
         state.user = action.payload.user
+      })
+      .addCase(loadUserFromSession.fulfilled, (state, action) => {
+        if(action.payload) {
+          state.token = action.payload.token;
+          state.user = action.payload.user;
+        }
       })     
   },
 });

@@ -2,19 +2,19 @@
 import React from "react";
 
 interface Props {
-  totalItems: number;
-  itemsPerPage: number;
+  totalPages: number;
   currentPage: number;
   onPageChange: (page: number) => void;
 }
 
 const Pagination: React.FC<Props> = ({
-  totalItems,
-  itemsPerPage,
+  totalPages,
   currentPage,
   onPageChange,
 }) => {
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+  console.log("totalPages!!!", totalPages)
+
   if (totalPages <= 1) return null;
 
   const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
@@ -26,6 +26,9 @@ const Pagination: React.FC<Props> = ({
   };
 
   const handleNext = () => {
+    console.log("handleNext")
+    console.log("currentPage@@@", currentPage)
+    console.log("totalPages@@@", totalPages)
     if (currentPage < totalPages) {
       onPageChange(currentPage + 1);
     }
