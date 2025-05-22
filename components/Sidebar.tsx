@@ -72,10 +72,12 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, toggleCollapse }: SidebarProps)
 
       <div className="mt-4 space-y-2">
       {categories.map((item) => {
-  const targetHref = item.slug ? `/dashboard/category/${item.slug}` : `/dashboard`;
-  const isActive = item.slug
-    ? pathname === targetHref || pathname.startsWith(`${targetHref}/`)
-    : pathname === "/dashboard";
+  const targetHref = item.path;
+
+  const isMainPage = targetHref === "/";
+  const isActive = isMainPage
+    ? pathname === "/dashboard"
+    : pathname.startsWith(targetHref)
 
   return (
     <Link
@@ -95,7 +97,7 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, toggleCollapse }: SidebarProps)
         )}
       >
         <span className="flex-shrink-0">{getCategoryIcon(item.slug)}</span>
-        {!isCollapsed && <span className="truncate">{item.name}</span>}
+        {!isCollapsed && <span className="">{item.name}</span>}
       </span>
     </Link>
   );

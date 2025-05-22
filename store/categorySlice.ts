@@ -1,8 +1,17 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "@/utils/axios";
 
+export interface Category{
+    id: number;
+    name: string;
+    order: number;
+    path: string;
+    slug: string;
+}
+
+
 interface CategoryState {
-    categories: any[];
+    categories: Category[];
     loading: boolean;
     error: string | null;    
 }

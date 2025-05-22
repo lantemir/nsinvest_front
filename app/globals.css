@@ -74,6 +74,14 @@ body {
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
   }
+  /* выделение дат с вебинарами */
+  .react-calendar__tile.highlight-date {
+    background: #2563eb; /* Tailwind: bg-blue-600 */
+    color: white;
+    font-weight: bold;
+    border-radius: 0.5rem;
+  }
+  
 }
 
 @layer base {
