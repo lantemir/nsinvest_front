@@ -1,25 +1,32 @@
 import type { NextConfig } from "next";
 
-const isProd = process.env.NODE_ENV === 'production';
-let imageHost = 'localhost';
+const isProd = process.env.NODE_ENV === "production";
+
+// Получаем hostname из NEXT_PUBLIC_API_URL
+let hostnameFromEnv = "localhost";
 try {
-  imageHost = new URL(process.env.NEXT_PUBLIC_API_URL || '').hostname;
-} catch (e) {
-  console.warn('⚠️ Invalid NEXT_PUBLIC_API_URL, fallback to "localhost"');
+  const parsed = new URL(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000");
+  hostnameFromEnv = parsed.hostname;
+} catch {
+  console.warn("⚠️ Could not parse NEXT_PUBLIC_API_URL, fallback to localhost");
 }
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  reactStrictMode: false, // ❗️Отключает двойной рендер
+  reactStrictMode: false,
   images: {
-    remotePatterns: 
-       [
-        {
-          protocol: isProd ? 'https': 'http',
-          hostname: imageHost,       
-          pathname: '/media/**',
-        },
-      ]    
+    remotePatterns: [
+      {
+        protocol: "http",
+        hostname: "localhost",
+        port: "8000",
+        pathname: "/media/**",
+      },
+      {
+        protocol: "https",
+        hostname: hostnameFromEnv,
+        pathname: "/media/**",
+      },
+    ],
   },
   eslint: {
     ignoreDuringBuilds: true,
@@ -27,10 +34,3 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
-
-// для прода
-// {
-//   protocol: 'https',
-//   hostname: 'api.mysite.com',
-//   pathname: '/media/**',
-// }
