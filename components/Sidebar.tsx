@@ -49,7 +49,7 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, toggleCollapse }: SidebarProps)
       className={clsx(
         "fixed top-0 left-0 h-screen bg-white border-r shadow-md z-20 transition-all duration-300",
         isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
-        isCollapsed ? "w-20" : "w-48"
+        `${isCollapsed ? "w-20" : "w-64"} md:${isCollapsed ? "w-20" : "w-48"}`
       )}
     >
       {/* Кнопка закрытия (мобилка) */}
