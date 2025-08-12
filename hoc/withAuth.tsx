@@ -1,101 +1,81 @@
-"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import axiosWithoutInterceptor from "@/utils/axios";
+import axios from "@/utils/axios"; // с интерсепторами для обычной работы
+import rawAxios from "@/utils/axios"; // если нужен «без»
 import { useDispatch } from "react-redux";
 
 const withAuth = (WrappedComponent: any) => {
-  const AuthenticatedComponent = (props: any) => {
+  const Authenticated = (props: any) => {
     const router = useRouter();
     const dispatch = useDispatch();
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-      console.log("withAuth@@@")
-      let isMounted = true; // защита от setState после размонтирования
+      let cancelled = false;
+
+      const proceed = (access: string, user: any) => {
+        sessionStorage.setItem("token", access);
+        sessionStorage.setItem("user", JSON.stringify(user));
+        dispatch({
+          type: "auth/loginUser/fulfilled",
+          payload: { access, user },
+        });
+        if (!cancelled) setLoading(false);
+      };
+
+      const redirectToLogin = () => {
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("user");
+        router.replace("/login");
+      };
 
       const checkAuth = async () => {
-        const token = sessionStorage.getItem("token");
-
-        // Если access_token есть — просто продолжаем
-        if (token) {
-          setLoading(false);
-          return;
-        }
-
-        // Иначе пробуем обновить access_token через refresh
         try {
-          const response = await axiosWithoutInterceptor.post(
-            "/api/auth/refresh/",
-            null,
-            {
-              withCredentials: true,
+          const stored = sessionStorage.getItem("token");
+
+          // 1) если есть токен — валидируем его
+          if (stored) {
+            try {
+              const me = await rawAxios.get("api/auth/me/", {
+                headers: { Authorization: `Bearer ${stored}` },
+                withCredentials: true,
+              });
+              return proceed(stored, me.data);
+            } catch {
+              // 401/expired → падаем в refresh
             }
-          );
-
-          const newAccessToken = response.data?.access;
-
-          
-
-          if (newAccessToken) {
-            sessionStorage.setItem("token", newAccessToken);
-
-            
-
-            // 🕐 Добавим задержку, чтобы сервер успел обновить куку           
-          
-            console.log("newAccessToken@@@ " , newAccessToken);
-
-            // 🔐 Получаем текущего пользователя
-            const userRes = await axiosWithoutInterceptor.get("api/auth/me/", {
-              headers: {
-                Authorization: `Bearer ${newAccessToken}`,
-              },
-            });
-
-            console.log("userRes@@@ " , userRes)
-
-            const user = userRes.data;
-            sessionStorage.setItem("user", JSON.stringify(user));
-
-            dispatch({
-              type: "auth/loginUser/fulfilled",
-              payload: {
-                access: newAccessToken,
-                user,
-              },
-            });
-
-            if (isMounted) {
-              setLoading(false);
-            }
-          } else {
-            sessionStorage.removeItem("token");
-            router.push("/login");
           }
-        } catch (err) {
-          console.error("Ошибка обновления токена:", err);
-          sessionStorage.removeItem("token");
-          router.push("/login");
+
+          // 2) пробуем refresh по httpOnly cookie
+          const r = await rawAxios.post("/api/auth/refresh/", null, {
+            withCredentials: true,
+          });
+          const newAccess = r.data?.access;
+          if (!newAccess) return redirectToLogin();
+
+          const me = await rawAxios.get("api/auth/me/", {
+            headers: { Authorization: `Bearer ${newAccess}` },
+            withCredentials: true,
+          });
+
+          return proceed(newAccess, me.data);
+        } catch (e) {
+          return redirectToLogin();
         }
       };
 
       checkAuth();
+      return () => { cancelled = true; };
+      // намеренно []
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
-      return () => {
-        isMounted = false;
-      };
-    }, [router, dispatch]);
-
-    if (loading) {
-      return <p>Проверка авторизации...</p>;
-    }
-
+    if (loading) return <p>Проверка авторизации…</p>;
     return <WrappedComponent {...props} />;
   };
 
-  return AuthenticatedComponent;
+  return Authenticated;
 };
 
 export default withAuth;

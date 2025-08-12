@@ -8,10 +8,11 @@ interface Profile {
 
 // Интерфейс состояния аутентификации
 interface AuthState {
-  user: { id: number; username: string; email: string | null; profile : Profile} | null;
+  user: { id: number; username: string; email: string | null; profile: Profile } | null;
   token: string | null;
   loading: boolean;
-  error: string | null;    
+  error: string | null;
+  status: 'checking' | 'authenticated' | 'unauthenticated';
 }
 
 // ✅ Читаем `token` и `user` из `sessionStorage`, если есть
@@ -24,18 +25,19 @@ const initialState: AuthState = {
   token: null,
   loading: false,
   error: null,
+  status: 'checking', // стартуем в режиме проверки
 };
 
 // ✅ Функция загрузки пользователя из `sessionStorage`
 export const loadUserFromSession = createAsyncThunk("auth/loadUser", async () => {
 
-  if(typeof window === "undefined") return null;
+  if (typeof window === "undefined") return null;
 
   const token = sessionStorage.getItem("token");
   const user = sessionStorage.getItem("user");
 
-  if (token && user ){
-    return { token, user: JSON.parse(user)};
+  if (token && user) {
+    return { token, user: JSON.parse(user) };
   }
   return null;
 
@@ -68,62 +70,62 @@ export const registerUser = createAsyncThunk(
   }
 );
 
-  export const verifyEmail = createAsyncThunk<
+export const verifyEmail = createAsyncThunk<
   any,
   { email: string; code: string },
   { rejectValue: { error: string } }
 >(
-    "auth/verifyEmail",
-    async ({ email, code }: { email: string; code: string }, thunkAPI) => {
-      try {
-        const response = await api.post("api/auth/verify-email/", { email, code });
-        return response.data;
-      } catch (error: any) {
-        return thunkAPI.rejectWithValue(error.response?.data?.error  || "Неверный код подтверждения");
-      }
+  "auth/verifyEmail",
+  async ({ email, code }: { email: string; code: string }, thunkAPI) => {
+    try {
+      const response = await api.post("api/auth/verify-email/", { email, code });
+      return response.data;
+    } catch (error: any) {
+      return thunkAPI.rejectWithValue(error.response?.data?.error || "Неверный код подтверждения");
     }
-  );
+  }
+);
 
-  export const resendVerifyEmail = createAsyncThunk(
-    "auth/resendVerificationCode",
-    async ({ email }: { email: string }, thunkAPI) => {
-      try {
-        const response = await api.post("api/auth/resend-verification-code/", { email });
-        return response.data;
-      } catch (error: any) {
-        return thunkAPI.rejectWithValue(error.response?.data?.detail || "Неверный код подтверждения");
-      }
+export const resendVerifyEmail = createAsyncThunk(
+  "auth/resendVerificationCode",
+  async ({ email }: { email: string }, thunkAPI) => {
+    try {
+      const response = await api.post("api/auth/resend-verification-code/", { email });
+      return response.data;
+    } catch (error: any) {
+      return thunkAPI.rejectWithValue(error.response?.data?.detail || "Неверный код подтверждения");
     }
-  );  
+  }
+);
 
 // Авторизация пользователя
-export const loginUser = createAsyncThunk <
-any,
-{ username: string; password: string },
-{ rejectValue: { error: string; email?: string } }  // <-- Указываем, что в `rejectWithValue` будет объект
-> (
+export const loginUser = createAsyncThunk<
+  any,
+  { username: string; password: string },
+  { rejectValue: { error: string; email?: string } }  // <-- Указываем, что в `rejectWithValue` будет объект
+>(
   "auth/loginUser",
   async ({ username, password }: { username: string; password: string }, thunkAPI) => {
     try {
       const response = await api.post("api/auth/login/", { username, password });
-      
+
       // ✅ Сохраняем `access token` в памяти, но НЕ `refresh token`
       sessionStorage.setItem("token", response.data.access)
       sessionStorage.setItem("user", JSON.stringify(response.data.user));
-      
+
       return response.data;
     } catch (error: any) {
       const errorMessage = error.response?.data?.detail || "Ошибка входа";
 
-       // Если аккаунт не подтвержден, достаем email из базы
+      // Если аккаунт не подтвержден, достаем email из базы
       if (errorMessage.includes("Подтвердите email перед входом")) {
-        try{
+        try {
           const userResponse = await api.get(`/api/auth/get-user-by-username/${username}/`);
           const userEmail = userResponse.data.email;
-          return thunkAPI.rejectWithValue({error: errorMessage, email: userEmail});
+          return thunkAPI.rejectWithValue({ error: errorMessage, email: userEmail });
         } catch {
-          return thunkAPI.rejectWithValue({error: errorMessage})
-        }        
+          return thunkAPI.rejectWithValue({ error: errorMessage })
+        }
       }
 
       return thunkAPI.rejectWithValue(errorMessage);
@@ -133,64 +135,64 @@ any,
 
 export const refreshUser = createAsyncThunk(
   "auth/refresh",
-  async(_, thunkAPI) => {
-    try{
+  async (_, thunkAPI) => {
+    try {
       const token = sessionStorage.getItem("token");
       const response = await api.get("api/auth/me", {
-        headers: {Authorization:`Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}` },
       });
       sessionStorage.setItem("user", JSON.stringify(response.data));
-      return{user: response.data, token}
+      return { user: response.data, token }
 
     } catch (error: any) {
       return thunkAPI.rejectWithValue("не удалось обновить данные пользователя")
     }
   }
-) 
+)
 
 export const changePassword = createAsyncThunk<
-any, 
-{username: string; password: string }, 
-{rejectValue: {error: string}}
+  any,
+  { username: string; password: string },
+  { rejectValue: { error: string } }
 >(
   "auth/password",
-  async({username, password}: {username: string; password: string}, thunkAPI) => {
+  async ({ username, password }: { username: string; password: string }, thunkAPI) => {
     try {
-      const response = await api.post("api/auth/password/", {username, password});
+      const response = await api.post("api/auth/password/", { username, password });
       return response.data
-    } catch (error: any){
-      return thunkAPI.rejectWithValue(error.response?.data?.error  || "password не изменён")
+    } catch (error: any) {
+      return thunkAPI.rejectWithValue(error.response?.data?.error || "password не изменён")
     }
-    
+
   }
-) 
+)
 
 export const forgotPassword = createAsyncThunk<
-any,
-{email: string; },
-{rejectValue:{error: string}}
+  any,
+  { email: string; },
+  { rejectValue: { error: string } }
 >(
   "auth/forgot-password",
-  async({email}:{email:string}, thunkAPI) => {
-    try{
-      const response = await api.post("api/auth/forgot-password/", {email});
+  async ({ email }: { email: string }, thunkAPI) => {
+    try {
+      const response = await api.post("api/auth/forgot-password/", { email });
       return response.data
-    } catch(error: any){
+    } catch (error: any) {
       return thunkAPI.rejectWithValue(error.response?.data?.error || "Не получилось изменить password")
     }
   }
 )
 
 export const resetPassword = createAsyncThunk<
-any,
-{uid: string, token: string, password: string},
-{rejectValue:{error: string}}
-> (
+  any,
+  { uid: string, token: string, password: string },
+  { rejectValue: { error: string } }
+>(
   "auth/reset-password",
-  async({uid, token, password }:{uid:string,token:string, password:string}, thunkAPI) => {
-    try{
-      const response = await api.post("/api/auth/reset-password-confirm/", {uid,token,password})
-    } catch(error: any){
+  async ({ uid, token, password }: { uid: string, token: string, password: string }, thunkAPI) => {
+    try {
+      const response = await api.post("/api/auth/reset-password-confirm/", { uid, token, password })
+    } catch (error: any) {
       return thunkAPI.rejectWithValue(error.respons?.data?.error || "Ошибка сброса пароля")
     }
   }
@@ -207,7 +209,9 @@ const authSlice = createSlice({
     logout: (state) => {
       state.user = null;
       state.token = null;
+      state.status = 'unauthenticated';
       sessionStorage.removeItem("token");
+      sessionStorage.removeItem("user");
     },
     clearAuthError: (state) => {
       state.error = null;
@@ -230,25 +234,32 @@ const authSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(loginUser.fulfilled, (state, action) => {
-        state.loading = false;
-        state.token = action.payload.access;
-        state.user = action.payload.user;
+      .addCase(loginUser.fulfilled, (s, a) => {
+        s.loading = false;
+        s.token = a.payload.access;
+        s.user = a.payload.user;
+        s.status = 'authenticated';
       })
-      .addCase(loginUser.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload?.error as string;
+      .addCase(loginUser.rejected, (s, a) => {
+        s.loading = false;
+        s.error = (a.payload as any)?.error;
+        s.status = 'unauthenticated';
       })
       .addCase(refreshUser.fulfilled, (state, action) => {
         state.token = action.payload.token
         state.user = action.payload.user
       })
-      .addCase(loadUserFromSession.fulfilled, (state, action) => {
-        if(action.payload) {
-          state.token = action.payload.token;
-          state.user = action.payload.user;
+      .addCase(loadUserFromSession.fulfilled, (s, a) => {
+        if (a.payload) {
+          s.token = a.payload.token;
+          s.user = a.payload.user;
+          s.status = 'authenticated';
+        } else {
+          s.status = 'unauthenticated';
         }
-      })     
+      })
+      .addCase(loadUserFromSession.pending, (s) => { s.status = 'checking'; })
+      .addCase(loadUserFromSession.rejected, (s) => { s.status = 'unauthenticated'; })
   },
 });
 
