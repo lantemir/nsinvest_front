@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import clsx from "clsx";
-import { Menu, Settings, Home, Users, Shield } from "lucide-react";
+import { Menu, Settings, Home, Users, Shield, House, Code, Blocks, BookOpenText, Calendar1, Earth } from "lucide-react";
 import { fetchCategories } from "@/store/categorySlice";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
@@ -14,13 +14,17 @@ const getCategoryIcon = (slug: string) => {
     case "cybersecurity":
       return <Shield size={20} />;
     case "programming":
-      return <Users size={20} />;
+      return <Code size={20} />;
     case "english":
-      return <Settings size={20} />;
+      return <Earth size={20} />;
+    case "books":
+      return < BookOpenText size={20} />
     case "devops":
-      return <Home size={20} />;
+      return <Blocks size={20} />;
+    case "meeting":
+      return <Calendar1 size={20} />;
     default:
-      return <Shield size={25} />;
+      return <House size={25} />;
   }
 };
 
@@ -71,37 +75,37 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, toggleCollapse }: SidebarProps)
       </div>
 
       <div className="mt-4 space-y-2">
-      {categories.map((item) => {
-  const targetHref = item.path;
+        {categories.map((item) => {
+          const targetHref = item.path;
 
-  const isMainPage = targetHref === "/";
-  const isActive = isMainPage
-    ? pathname === "/dashboard"
-    : pathname.startsWith(targetHref)
+          const isMainPage = targetHref === "/";
+          const isActive = isMainPage
+            ? pathname === "/dashboard"
+            : pathname.startsWith(targetHref)
 
-  return (
-    <Link
-      key={item.id}
-      href={targetHref}
-      onClick={() => {
-        if (window.innerWidth < 768) {
-          onClose();
-        }
-      }}
-      className="block"
-    >
-      <span
-        className={clsx(
-          "flex items-center gap-3 py-2 px-3 rounded hover:bg-gray-100 w-full",
-          isActive && "bg-gray-200 font-medium"
-        )}
-      >
-        <span className="flex-shrink-0">{getCategoryIcon(item.slug)}</span>
-        {!isCollapsed && <span className="">{item.name}</span>}
-      </span>
-    </Link>
-  );
-})}
+          return (
+            <Link
+              key={item.id}
+              href={targetHref}
+              onClick={() => {
+                if (window.innerWidth < 768) {
+                  onClose();
+                }
+              }}
+              className="block"
+            >
+              <span
+                className={clsx(
+                  "flex items-center gap-3 py-2 px-3 rounded hover:bg-gray-100 w-full",
+                  isActive && "bg-gray-200 font-medium"
+                )}
+              >
+                <span className="flex-shrink-0">{getCategoryIcon(item.slug)}</span>
+                {!isCollapsed && <span className="">{item.name}</span>}
+              </span>
+            </Link>
+          );
+        })}
       </div>
     </aside>
   );
