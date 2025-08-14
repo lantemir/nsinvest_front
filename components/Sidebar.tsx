@@ -1,9 +1,9 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState, MouseEvent, useCallback } from "react";
 import clsx from "clsx";
-import { Menu, Settings, Home, Users, Shield, House, Code, Blocks, BookOpenText, Calendar1, Earth } from "lucide-react";
+import { Shield, House, Code, Blocks, BookOpenText, Calendar1, Earth } from "lucide-react";
 import { fetchCategories } from "@/store/categorySlice";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
@@ -11,20 +11,13 @@ import { useAppDispatch } from "@/store/hooks";
 
 const getCategoryIcon = (slug: string) => {
   switch (slug) {
-    case "cybersecurity":
-      return <Shield size={20} />;
-    case "programming":
-      return <Code size={20} />;
-    case "english":
-      return <Earth size={20} />;
-    case "books":
-      return < BookOpenText size={20} />
-    case "devops":
-      return <Blocks size={20} />;
-    case "meeting":
-      return <Calendar1 size={20} />;
-    default:
-      return <House size={25} />;
+    case "cybersecurity": return <Shield size={20} />;
+    case "programming":  return <Code size={20} />;
+    case "english":      return <Earth size={20} />;
+    case "books":        return <BookOpenText size={20} />;
+    case "devops":       return <Blocks size={20} />;
+    case "meeting":      return <Calendar1 size={20} />;
+    default:             return <House size={25} />;
   }
 };
 
@@ -35,80 +28,111 @@ interface SidebarProps {
   toggleCollapse: () => void;
 }
 
-const Sidebar = ({ isOpen, onClose, isCollapsed, toggleCollapse }: SidebarProps) => {
+export default function Sidebar({
+  isOpen, onClose, isCollapsed, toggleCollapse,
+}: SidebarProps) {
   const pathname = usePathname();
   const dispatch = useAppDispatch();
-
-  const { categories } = useSelector((state: RootState) => state.category);
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { categories } = useSelector((s: RootState) => s.category);
+  const { user } = useSelector((s: RootState) => s.auth);
+  const [animating, setAnimating] = useState(false);
 
   useEffect(() => {
-    if (user && categories.length === 0) {
-      dispatch(fetchCategories());
-    }
-  }, [dispatch, user]);
+    if (user && categories.length === 0) dispatch(fetchCategories());
+  }, [dispatch, user, categories.length]);
+
+  const stop = (e: MouseEvent) => e.stopPropagation();
+
+  // клик по «фону» самой панели — сворачиваем на десктопе
+  const handleAsideClick = useCallback((e: MouseEvent<HTMLElement>) => {
+    if (window.innerWidth < 768) return;        // на мобилке кликаем по overlay
+    if (animating) return;
+    if (e.currentTarget !== e.target) return;   // клики по детям игнорим
+    setAnimating(true);
+    toggleCollapse();
+  }, [animating, toggleCollapse]);
 
   return (
-    <aside
-      className={clsx(
-        "fixed top-0 left-0 h-screen bg-white border-r shadow-md z-20 transition-all duration-300",
-        isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
-        `${isCollapsed ? "w-20" : "w-64"} md:${isCollapsed ? "w-20" : "w-48"}`
-      )}
-    >
-      {/* Кнопка закрытия (мобилка) */}
-      <button
+    <>
+      {/* ==== OVERLAY (мобилка) ==== */}
+      <div
         onClick={onClose}
-        className="absolute top-4 right-4 text-xl md:hidden"
+        className={clsx(
+          "fixed inset-0 z-10 bg-black/30 md:hidden transition-opacity",
+          isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        )}
+      />
+
+      {/* ==== SIDEBAR ==== */}
+      <aside
+        onClick={handleAsideClick}
+        onTransitionEnd={() => setAnimating(false)}
+        className={clsx(
+          "fixed top-0 left-0 h-screen bg-white border-r shadow-md z-20",
+          // Анимируем transform для въезда/выезда и width для сворачивания
+          "transition-[transform,width] duration-200 will-change-[transform,width]",
+          // мобилка: сдвигаем панель за экран (isOpen управляет видимостью вместе с overlay)
+          isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
+          // десктоп: реальная смена ширины
+          isCollapsed ? "md:w-20 w-64" : "md:w-56 w-64"
+        )}
+        role="navigation"
+        aria-expanded={!isCollapsed}
       >
-        ✕
-      </button>
-
-      {/* Кнопка свернуть (десктоп) */}
-      <div className="hidden md:flex justify-end">
+        {/* крестик (мобилка) */}
         <button
-          onClick={toggleCollapse}
-          className="text-gray-500 hover:text-gray-800 p-1"
+          onClick={(e) => { stop(e); onClose(); }}
+          className="absolute top-4 right-4 text-xl md:hidden"
+          aria-label="Закрыть меню"
         >
-          {isCollapsed ? "→" : "←"}
+          ✕
         </button>
-      </div>
 
-      <div className="mt-4 space-y-2">
-        {categories.map((item) => {
-          const targetHref = item.path;
+        {/* стрелка (десктоп) */}
+        <div className="hidden md:flex items-center justify-end px-2 py-2">
+          <button
+            onClick={(e) => { stop(e); if (!animating) { setAnimating(true); toggleCollapse(); } }}
+            className="text-gray-500 hover:text-gray-800 p-1"
+            aria-label={isCollapsed ? "Развернуть боковую панель" : "Свернуть боковую панель"}
+          >
+            {isCollapsed ? "→" : "←"}
+          </button>
+        </div>
 
-          const isMainPage = targetHref === "/";
-          const isActive = isMainPage
-            ? pathname === "/dashboard"
-            : pathname.startsWith(targetHref)
+        <div className="mt-2 space-y-1 px-2">
+          {categories.map((item) => {
+            const href = item.path;
+            const active = (href === "/") ? pathname === "/dashboard" : pathname.startsWith(href);
 
-          return (
-            <Link
-              key={item.id}
-              href={targetHref}
-              onClick={() => {
-                if (window.innerWidth < 768) {
-                  onClose();
-                }
-              }}
-              className="block"
-            >
-              <span
+            return (
+              <Link
+                key={item.id}
+                href={href}
+                onClick={(e) => {
+                  stop(e);
+                  if (window.innerWidth < 768) onClose(); // на мобилке закрываем после выбора
+                }}
                 className={clsx(
-                  "flex items-center gap-3 py-2 px-3 rounded hover:bg-gray-100 w-full",
-                  isActive && "bg-gray-200 font-medium"
+                  "flex items-center gap-3 py-2 px-3 rounded hover:bg-gray-100",
+                  active && "bg-gray-200 font-medium"
                 )}
               >
                 <span className="flex-shrink-0">{getCategoryIcon(item.slug)}</span>
-                {!isCollapsed && <span className="">{item.name}</span>}
-              </span>
-            </Link>
-          );
-        })}
-      </div>
-    </aside>
-  );
-};
 
-export default Sidebar;
+                {/* подпись: плавно прячем/показываем + чтобы колонки не прыгали */}
+                <span
+                  className={clsx(
+                    "whitespace-nowrap overflow-hidden transition-[opacity,transform] duration-200",
+                    isCollapsed ? "opacity-0 -translate-x-2 w-0" : "opacity-100 translate-x-0"
+                  )}
+                >
+                  {item.name}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      </aside>
+    </>
+  );
+}
