@@ -1,78 +1,100 @@
-import axios from "axios";
+// utils/axios.ts
+import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-// Создаем экземпляр axios с настройками
-const api = axios.create({
-  baseURL: API_URL,
-  withCredentials: true,  // ✅ Обязательно добавь
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
+/** ===== Хранилище access в памяти (не дергать sessionStorage по 100 раз) ===== */
+let ACCESS: string | null =
+  typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
 
-// 🔥 Создаем `axios` без интерсепторов (чтобы `refreshToken()` работал корректно)
-const axiosWithoutInterceptor = axios.create({
-  baseURL: API_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
-
-// ✅ Функция для обновления `access_token`
-let isRefreshing = false;
-const refreshToken = async () => {
-  if(isRefreshing) return null;
-  isRefreshing = true;
-
-  try {
-    const response = await axiosWithoutInterceptor.post("/api/auth/refresh/", null, {
-      withCredentials: true, // ✅ ОБЯЗАТЕЛЬНО для отправки httpOnly куки
-    }); // `refresh_token` берётся из cookie
-    sessionStorage.setItem("token", response.data.access); // ✅ Обновляем `access_token`
-    return response.data.access;
-  } catch (error) {
-    console.error("Ошибка обновления токена:", error);
-    sessionStorage.removeItem("token"); // ✅ Удаляем `access_token`
-    return null;
+const setAccess = (t: string | null) => {
+  ACCESS = t;
+  if (typeof window !== "undefined") {
+    if (t) sessionStorage.setItem("token", t);
+    else {
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("user");
+    }
   }
 };
+export const getAccess = () => ACCESS;
 
-// ✅ Интерсептор запросов (перед отправкой)
-api.interceptors.request.use((config) => {
-  const token = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
+/** ===== Инстансы ===== */
+// 1) Боевой инстанс с интерсепторами — используешь ВЕЗДЕ в приложении
+export const api = axios.create({
+  baseURL: API_URL,
+  withCredentials: true,
+  headers: { "Content-Type": "application/json" },
+});
 
-  // Пути, которые **не требуют авторизации**
-  const noAuthRoutes = ["/api/auth/register/", "/api/auth/verify-email/"];
+// 2) ПЛОСКИЙ инстанс без интерсепторов — только для withAuth/refresh/me
+export const axiosPlain = axios.create({
+  baseURL: API_URL,
+  withCredentials: true,
+  headers: { "Content-Type": "application/json" },
+});
 
-  if (token && !noAuthRoutes.includes(config.url || "")) {
-    config.headers.Authorization = `Bearer ${token}`;
+/** ===== Refresh c мьютексом (защита от параллельных refresh) ===== */
+let refreshing = false;
+let waiters: ((t: string | null) => void)[] = [];
+
+export async function refreshToken(): Promise<string | null> {
+  if (refreshing) {
+    return new Promise((res) => waiters.push(res));
+  }
+  refreshing = true;
+  try {
+    const r = await axiosPlain.post("/api/auth/refresh/", null); // httpOnly cookie отправится из-за withCredentials:true
+    const access = r.data?.access ?? null;
+    setAccess(access);
+    return access;
+  } catch (_e) {
+    setAccess(null);
+    return null; // не бросаем — вызывающая сторона решит, что делать
+  } finally {
+    refreshing = false;
+    waiters.forEach((fn) => fn(ACCESS));
+    waiters = [];
+  }
+}
+
+/** ===== Интерсепторы на боевом инстансе ===== */
+
+// request: проставляем Bearer
+api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  const token = getAccess();
+  // пути, где токен не нужен
+  const noAuth = ["/api/auth/register/", "/api/auth/verify-email/", "/api/auth/login/"];
+  // config.url может быть как относительным, так и абсолютным — страхуемся:
+  const url = (config.url || "").replace(API_URL, "");
+  if (token && !noAuth.some((p) => url.startsWith(p))) {
+    config.headers = config.headers || {};
+    (config.headers as any).Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
-//✅ Интерсептор ответов (если 401, пробуем обновить токен)
+// response: на 401 — один refresh и повтор запроса
 api.interceptors.response.use(
-  (response) => response, // ✅ Если ответ успешный, возвращаем как есть
-  async (error) => {
-    const originalRequest = error.config;
+  (r) => r,
+  async (error: AxiosError) => {
+    const original = error.config as any;
+    const status = error.response?.status;
 
-    const isAuthRoute = originalRequest.url.includes("auth/login") || originalRequest.url.includes("/auth/register");
+    // не трогаем явные auth-роуты, чтобы не зациклить
+    const url = (original?.url || "").toString().replace(API_URL, "");
+    const isAuthRoute = url.startsWith("/api/auth/login/") || url.startsWith("/api/auth/register/");
 
-    // Если ошибка 401 (Unauthorized) и запрос еще не повторялся
-    if (error.response?.status === 401 && !isAuthRoute && !originalRequest._retry) {
-      originalRequest._retry = true; // ✅ Флаг, чтобы не зациклить запрос
-
-      const newAccessToken = await refreshToken();
-      if (newAccessToken) {
-        // ✅ Обновляем заголовок запроса и повторяем его
-        sessionStorage.setItem("token", newAccessToken);
-        api.defaults.headers.Authorization = `Bearer ${newAccessToken}`;
-        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-        return api(originalRequest);
+    if (status === 401 && !isAuthRoute && !original?._retry) {
+      original._retry = true;
+      const newAccess = await refreshToken(); // ← НЕ бросает
+      if (newAccess) {
+        original.headers = original.headers || {};
+        original.headers.Authorization = `Bearer ${newAccess}`;
+        return api(original); // повторяем запрос с новым токеном
       }
     }
-
+    // дальше — пусть обработает вызывающий код (без красного overlay, если там try/catch)
     return Promise.reject(error);
   }
 );

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import axios from "@/utils/axios"; // с интерсепторами для обычной работы
 import rawAxios from "@/utils/axios"; // если нужен «без»
+import { axiosPlain } from "@/utils/axios"; // ← берём ПЛОСКИЙ
 import { useDispatch } from "react-redux";
 
 const withAuth = (WrappedComponent: any) => {
@@ -37,7 +38,7 @@ const withAuth = (WrappedComponent: any) => {
           // 1) если есть токен — валидируем его
           if (stored) {
             try {
-              const me = await rawAxios.get("api/auth/me/", {
+              const me = await axiosPlain.get("api/auth/me/", {
                 headers: { Authorization: `Bearer ${stored}` },
                 withCredentials: true,
               });
@@ -48,13 +49,13 @@ const withAuth = (WrappedComponent: any) => {
           }
 
           // 2) пробуем refresh по httpOnly cookie
-          const r = await rawAxios.post("/api/auth/refresh/", null, {
+          const r = await axiosPlain.post("/api/auth/refresh/", null, {
             withCredentials: true,
           });
           const newAccess = r.data?.access;
           if (!newAccess) return redirectToLogin();
 
-          const me = await rawAxios.get("api/auth/me/", {
+          const me = await axiosPlain.get("api/auth/me/", {
             headers: { Authorization: `Bearer ${newAccess}` },
             withCredentials: true,
           });
