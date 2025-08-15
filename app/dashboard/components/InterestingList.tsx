@@ -68,7 +68,7 @@ const InterestingList = () => {
                 className="w-full h-48 object-cover"
               />
               <div className="p-4">
-                <h2 className="text-xl  text-gray-800 hover:text-blue-600 transition">
+                <h2 className="text-base  text-gray-800 hover:text-blue-600 transition">
                   {interest.title}
                 </h2>
               </div>

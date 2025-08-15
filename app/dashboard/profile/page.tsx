@@ -4,6 +4,7 @@ import { useSelector, useDispatch } from "react-redux";
 import api from "@/utils/axios";
 import { RootState, AppDispatch } from "@/store/store";
 import { refreshUser, changePassword } from "@/store/authSlice";
+import { BASE_URL } from "@/src/config";
 
 export default function ProfileForm() {
   const dispatch = useDispatch<AppDispatch>();
@@ -70,7 +71,7 @@ export default function ProfileForm() {
       <div className="flex flex-col items-center space-y-3">
         {user?.profile?.avatar ? (
           <img
-            src={`http://localhost:8000${user.profile.avatar}`}
+            src={`${BASE_URL}${user.profile.avatar ?? ""}`}
             alt="Аватар"
             className="w-32 h-32 rounded-full object-cover border-2 border-gray-300 shadow-md"
           />
