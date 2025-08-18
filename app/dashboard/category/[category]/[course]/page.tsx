@@ -2,45 +2,56 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAppDispatch } from "@/store/hooks";
 import { fetchLessonsByCourse, fetchLessonById, resetLessons } from "@/store/lessonSlice";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import clsx from "clsx";
+import Pagination from "@/components/Pagination";
 
 
 export default function LessonPage() {
-  const {  course, category } = useParams();
-    const dispatch = useAppDispatch();
-   
-    const { currentLesson, lessons } = useSelector((state: RootState) => state.lesson);
- 
+  const { course } = useParams();
+  const dispatch = useAppDispatch();
 
-    const changeLesson = (lessonId:number) => {
-        dispatch(fetchLessonById({ lessonId: Number(lessonId) }))
-    }
+  const { currentLesson, lessons, totalPages } = useSelector(
+    (state: RootState) => state.lesson
+  );
+  const [currentPage, setCurrentPage] = useState(1);
 
-    useEffect(() => {
-        const loadLessonsAndFirst = async () => {
-          dispatch(resetLessons());
-          if (!course) return;
-      
-          const resultAction = await dispatch(
-            fetchLessonsByCourse({ courseId: Number(course), page: 1 })
-          );
-      
-          if (
-            fetchLessonsByCourse.fulfilled.match(resultAction) &&
-            resultAction.payload.data.length > 0
-          ) {
-            const firstLessonId = resultAction.payload.data[0].id;
-            dispatch(fetchLessonById({ lessonId: firstLessonId }));
-          }
-        };
-      
-        loadLessonsAndFirst();
-      }, [course, dispatch]);
+  const changeLesson = (lessonId: number) => {
+    dispatch(fetchLessonById({ lessonId: Number(lessonId) }));
+  };
+
+  // 1) Сброс при смене курса + старт с первой страницы
+  useEffect(() => {
+    dispatch(resetLessons());
+    setCurrentPage(1);                       // ← NEW
+  }, [course, dispatch]);                    // ← NEW
+
+  // 2) Загружаем уроки при изменении currentPage (и course)
+  useEffect(() => {                          // ← NEW block
+    const loadPage = async () => {
+      if (!course) return;
+
+      const action = await dispatch(
+        fetchLessonsByCourse({ courseId: Number(course), page: currentPage })
+      );
+
+      // Если текущего урока нет на этой странице — выбираем первый из нее
+      if (
+        fetchLessonsByCourse.fulfilled.match(action) &&
+        action.payload.data.length > 0 &&
+        !action.payload.data.some((l: any) => l.id === currentLesson?.id)
+      ) {
+        const firstId = action.payload.data[0].id;
+        dispatch(fetchLessonById({ lessonId: firstId }));
+      }
+    };
+
+    loadPage();
+  }, [course, currentPage, dispatch]);        // ← NEW deps
    
 
     return (
@@ -89,11 +100,20 @@ export default function LessonPage() {
                                 onClick={(e)=>changeLesson(lesson?.id)}
                                 >
          
-                                {lesson.title}
+                                {lesson.title} 
                      
                         </li>
                     ))}
                 </ul>
+                
+                <div className="flex justify-center">
+                    <Pagination
+                        totalPages={totalPages}
+                        currentPage={currentPage}
+                        onPageChange={setCurrentPage}
+                    />
+                </div>
+
             </div>
         </div>
     );
