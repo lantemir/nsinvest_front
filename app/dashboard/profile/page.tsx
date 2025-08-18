@@ -12,6 +12,7 @@ export default function ProfileForm() {
 
   const [avatar, setAvatar] = useState<File | null>(null);
   const [phone, setPhone] = useState(user?.profile?.phone_number || "");
+  const [email, setEmail] = useState(user?.email || "");
 
   // 👇 новое состояние для смены пароля
   const [newPassword, setNewPassword] = useState("");
@@ -19,7 +20,8 @@ export default function ProfileForm() {
 
   useEffect(() => {
     setPhone(user?.profile?.phone_number || "");
-  }, [user?.profile?.phone_number]);
+    setEmail(user?.email || "");
+  }, [user?.profile?.phone_number, user?.email]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,6 +29,7 @@ export default function ProfileForm() {
     const formData = new FormData();
     if (avatar) formData.append("profile.avatar", avatar);
     formData.append("profile.phone_number", phone);
+    formData.append("email", email);   
 
     try {
       await api.patch("/api/auth/profile/", formData, {
@@ -111,6 +114,17 @@ export default function ProfileForm() {
           onChange={(e) => setPhone(e.target.value)}
           className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
           placeholder="+7 777 1234567"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+        <input
+          type="tel"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="Ваш email"
         />
       </div>
 
