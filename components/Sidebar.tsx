@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, MouseEvent, useCallback } from "react";
 import clsx from "clsx";
-import { Shield, House, Code, Blocks, BookOpenText, Calendar1, Earth } from "lucide-react";
+import { Shield, House, Code, Blocks, BookOpenText, Calendar1, Earth, Brain  } from "lucide-react";
 import { fetchCategories } from "@/store/categorySlice";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
@@ -17,6 +17,7 @@ const getCategoryIcon = (slug: string) => {
     case "books":        return <BookOpenText size={20} />;
     case "devops":       return <Blocks size={20} />;
     case "meeting":      return <Calendar1 size={20} />;
+    case "ai":      return <Brain size={20} />;
     default:             return <House size={25} />;
   }
 };
