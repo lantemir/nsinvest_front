@@ -75,9 +75,9 @@
 .lesson-content [style*="color"] {
   color: inherit !important;
 }
-.lesson-content span {
+/* .lesson-content span {
   background: transparent !important;
-}
+} */
 
   /* выделение дат с вебинарами */
   .react-calendar__tile.highlight-date {
