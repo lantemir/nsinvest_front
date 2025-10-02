@@ -67,6 +67,18 @@
     font-family: Arial, Helvetica, sans-serif;
   }
 
+  /* убираем белый фон и сбрасываем цвет текста */
+.lesson-content [style*="background-color"] {
+  background-color: transparent !important;
+}
+
+.lesson-content [style*="color"] {
+  color: inherit !important;
+}
+.lesson-content span {
+  background: transparent !important;
+}
+
   /* выделение дат с вебинарами */
   .react-calendar__tile.highlight-date {
     background: #2563eb;

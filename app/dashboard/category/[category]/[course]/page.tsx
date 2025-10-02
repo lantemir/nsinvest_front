@@ -56,7 +56,7 @@ export default function LessonPage() {
             {currentLesson.content && (
               <div className="w-full max-w-3xl mb-10">
                 <div
-                  className="prose prose-lg"
+                  className="lesson-content prose prose-lg"
                   dangerouslySetInnerHTML={{ __html: currentLesson.content }}
                 />
               </div>
