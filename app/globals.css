@@ -72,9 +72,9 @@
   background-color: transparent !important;
 }
 
-.lesson-content [style*="color"] {
+/* .lesson-content [style*="color"] {
   color: inherit !important;
-}
+} */
 /* .lesson-content span {
   background: transparent !important;
 } */
